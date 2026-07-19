@@ -1,0 +1,104 @@
+{
+    "LinkOneZoneWebsite": {
+        "de": "https://www.onezone.ch",
+        "fr": "https://www.onezone.ch",
+        "it": "https://www.onezone.ch",
+        "en": "https://www.onezone.ch"
+    },
+    "LinkOneZoneSupport": {
+        "de": "https://onezone.ch/support/notfallnummern/",
+        "fr": "https://onezone.ch/support/notfallnummern/",
+        "it": "https://onezone.ch/support/notfallnummern/",
+        "en": "https://onezone.ch/support/notfallnummern/"
+    },
+    "LinkOneZoneFAQ": {
+        "de": "https://onezone.ch/support/faq/",
+        "fr": "https://onezone.ch/fr/support/faq/",
+        "it": "https://onezone.ch/it/support/faq/",
+        "en": "https://onezone.ch/en/support/faq/"
+    },
+    "LinkOneZoneSteuern": {
+        "de": "https://onezone.ch/steuern",
+        "fr": "https://onezone.ch/fr/impots",
+        "it": "https://onezone.ch/it/tasse",
+        "en": "https://onezone.ch/en/taxes"
+    },
+    "LinkOneZoneNews": {
+        "de": "https://onezone.ch/blogs",
+        "fr": "https://onezone.ch/blogs",
+        "it": "https://onezone.ch/blogs",
+        "en": "https://onezone.ch/blogs"
+    },
+    "LinkOneZoneCompareTravel": {
+        "de": "https://onezone.ch/reiseversicherung/?cid=%CID%",
+        "fr": "https://onezone.ch/reiseversicherung/?cid=%CID%",
+        "it": "https://onezone.ch/reiseversicherung/?cid=%CID%",
+        "en": "https://onezone.ch/reiseversicherung/?cid=%CID%"
+    },
+    "LinkOneZoneCompareHousehold": {
+        "de": "https://onezone.ch/haftpflicht-und-hausrat/?cid=%CID%#vfbp-form-3",
+        "fr": "https://onezone.ch/haftpflicht-und-hausrat/?cid=%CID%#vfbp-form-3",
+        "it": "https://onezone.ch/haftpflicht-und-hausrat/?cid=%CID%#vfbp-form-3",
+        "en": "https://onezone.ch/haftpflicht-und-hausrat/?cid=%CID%#vfbp-form-3"
+    },
+    "LinkOneZoneComparePension": {
+        "de": "https://onezone.ch/vorsorge-saeule-3a/?cid=%CID%#vfbp-form-5",
+        "fr": "https://onezone.ch/vorsorge-saeule-3a/?cid=%CID%#vfbp-form-5",
+        "it": "https://onezone.ch/vorsorge-saeule-3a/?cid=%CID%#vfbp-form-5",
+        "en": "https://onezone.ch/vorsorge-saeule-3a/?cid=%CID%#vfbp-form-5"
+    },
+    "LinkOneZoneCompareRent": {
+        "de": "https://onezone.ch/mietkautionsversicherung/?cid=%CID%#rechner",
+        "fr": "https://onezone.ch/mietkautionsversicherung/?cid=%CID%#rechner",
+        "it": "https://onezone.ch/mietkautionsversicherung/?cid=%CID%#rechner",
+        "en": "https://onezone.ch/mietkautionsversicherung/?cid=%CID%#rechner"
+    },
+    "LinkOneZoneCompareLaw": {
+        "de": "https://onezone.ch/rechtsschutzversicherung/?cid=%CID%#vfbp-form-8",
+        "fr": "https://onezone.ch/rechtsschutzversicherung/?cid=%CID%#vfbp-form-8",
+        "it": "https://onezone.ch/rechtsschutzversicherung/?cid=%CID%#vfbp-form-8",
+        "en": "https://onezone.ch/rechtsschutzversicherung/?cid=%CID%#vfbp-form-8"
+    },
+    "LinkOneZoneCompareCyber": {
+        "de": "https://www.onezone.ch",
+        "fr": "https://www.onezone.ch",
+        "it": "https://www.onezone.ch",
+        "en": "https://www.onezone.ch"
+    },
+    "LinkOneZoneCompareAnimal": {
+        "de": "https://be.wau-miau.ch/book/135?cid=%CID%",
+        "fr": "https://be.wau-miau.ch/book/135?cid=%CID%",
+        "it": "https://be.wau-miau.ch/book/135?cid=%CID%",
+        "en": "https://be.wau-miau.ch/book/135?cid=%CID%"
+    },
+    "LinkOneZoneCompareCar": {
+        "de": "https://onezone.ch/autoversicherung/?cid=%CID%#vfbp-form-4",
+        "fr": "https://onezone.ch/autoversicherung/?cid=%CID%#vfbp-form-4",
+        "it": "https://onezone.ch/autoversicherung/?cid=%CID%#vfbp-form-4",
+        "en": "https://onezone.ch/autoversicherung/?cid=%CID%#vfbp-form-4"
+    },
+    "LinkOneZoneCompareInsurance": {
+        "de": "https://app.onezone.ch/de/rechner/step-1?cid=%CID%",
+        "fr": "https://app.onezone.ch/de/rechner/step-1?cid=%CID%",
+        "it": "https://app.onezone.ch/de/rechner/step-1?cid=%CID%",
+        "en": "https://app.onezone.ch/de/rechner/step-1?cid=%CID%"
+    },
+    "LinkOneZoneCompareOther": {
+        "de": "https://www.onezone.ch",
+        "fr": "https://www.onezone.ch",
+        "it": "https://www.onezone.ch",
+        "en": "https://www.onezone.ch"
+    },
+    "LinkOneZoneNotfallnummern": {
+        "de": "https://onezone.ch/support/notfallnummern/",
+        "fr": "https://onezone.ch/support/notfallnummern/",
+        "it": "https://onezone.ch/support/notfallnummern/",
+        "en": "https://onezone.ch/support/notfallnummern/"
+    },
+    "LinkOneZoneAGB": {
+        "de": "https://onezone.ch/agb/",
+        "fr": "https://onezone.ch/fr/conditions-generales-de-vente-onezone/",
+        "it": "https://onezone.ch/it/agb-onezone/",
+        "en": "https://onezone.ch/en/agbs-onezone/"
+    }
+}
