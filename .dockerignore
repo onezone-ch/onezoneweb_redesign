@@ -1,0 +1,36 @@
+# Dipendenze e build (ricostruiti nell'immagine)
+node_modules
+.next
+out
+build
+
+# Env / segreti — MAI nel context di build
+.env
+.env.*
+!.env.example
+
+# Git / CI
+.git
+.gitignore
+
+# Editor / OS
+.DS_Store
+.vscode
+.idea
+
+# Claude / docs / wiki (non servono a runtime)
+.claude
+docs
+wiki
+*.md
+!README.md
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
