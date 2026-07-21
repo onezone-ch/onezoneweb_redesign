@@ -3,9 +3,8 @@
 /**
  * Modal ricerca veicolo (port della `modal` di automation-form):
  * tre modalità mutuamente esclusive — matricola (9 cifre, auto-search),
- * n. omologazione (≥6 char, auto-search debounce 300), marca+filtri
- * (autocomplete brand SwissCarInfo → dropdown modelli da action=filters,
- * potenza min/max, Filtra/Reset — doc 2026-07-16).
+ * n. omologazione (≥6 char, auto-search debounce 300), marca + modello
+ * (input libero, marca con autocomplete SwissCarInfo) + Cerca.
  * Tabella risultati sticky-header con paginazione (5 pagine visibili).
  */
 
@@ -16,7 +15,7 @@ import { useI18n } from "@/lib/i18n/I18nProvider";
 import * as sci from "@/lib/api/swisscarinfo";
 import type { VehicleResult } from "@/lib/api/automation.types";
 
-type SearchType = "brand_filters" | "variant" | "matricule";
+type SearchType = "brand_model" | "variant" | "matricule";
 
 export interface VehicleSelection {
   result: VehicleResult;
@@ -37,25 +36,17 @@ export function VehicleSearchModal({
 
   const [typeApprovalQuery, setTypeApprovalQuery] = useState("");
   const [brandQuery, setBrandQuery] = useState("");
+  const [modelQuery, setModelQuery] = useState("");
   const [serialQuery, setSerialQuery] = useState("");
-  const [selectedBrand, setSelectedBrand] = useState("");
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
-  const [models, setModels] = useState<string[]>([]);
-  const [filteredModels, setFilteredModels] = useState<string[]>([]);
-  const [modelFilterQuery, setModelFilterQuery] = useState("");
-  const [showModelDropdown, setShowModelDropdown] = useState(false);
-  const [filtersLoading, setFiltersLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("");
-  const [powerMin, setPowerMin] = useState("");
-  const [powerMax, setPowerMax] = useState("");
   const [results, setResults] = useState<VehicleResult[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const perPage = 10;
-  const lastSearchType = useRef<SearchType>("brand_filters");
+  const lastSearchType = useRef<SearchType>("brand_model");
   const brandDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const taDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -64,22 +55,15 @@ export function VehicleSearchModal({
     if (!open) return;
     setTypeApprovalQuery("");
     setBrandQuery("");
+    setModelQuery("");
     setSerialQuery("");
-    setSelectedBrand("");
     setBrandSuggestions([]);
     setShowBrandDropdown(false);
-    setModels([]);
-    setFilteredModels([]);
-    setModelFilterQuery("");
-    setShowModelDropdown(false);
-    setSelectedModel("");
-    setPowerMin("");
-    setPowerMax("");
     setResults([]);
     setPage(1);
     setTotal(0);
     setSearched(false);
-    lastSearchType.current = "brand_filters";
+    lastSearchType.current = "brand_model";
   }, [open]);
 
   const totalPages = Math.ceil(total / perPage);
@@ -90,13 +74,6 @@ export function VehicleSearchModal({
     for (let i = start; i <= end; i++) pages.push(i);
     return pages;
   })();
-
-  const parsePower = (v: string): number | null => {
-    const trimmed = (v ?? "").trim();
-    if (!trimmed) return null;
-    const n = Number(trimmed);
-    return Number.isFinite(n) ? n : null;
-  };
 
   const searchByTypeApproval = async (targetPage: number) => {
     setSearched(true);
@@ -124,20 +101,18 @@ export function VehicleSearchModal({
     setLoading(false);
   };
 
-  const applyFilters = async (targetPage = 1) => {
-    const brand = selectedBrand.trim();
-    if (!brand) return;
+  const searchByBrandModel = async (targetPage = 1) => {
+    if (!brandQuery.trim() && !modelQuery.trim()) return;
     setSearched(true);
     setLoading(true);
-    lastSearchType.current = "brand_filters";
-    const { results: r, total: tot } = await sci.searchVehiclesByBrand(brand, {
-      model: selectedModel || undefined,
-      powerMin: parsePower(powerMin),
-      powerMax: parsePower(powerMax),
-      page: targetPage,
+    lastSearchType.current = "brand_model";
+    const { results: r, total: tot } = await sci.searchVehicles(
+      brandQuery,
+      modelQuery,
+      targetPage,
       perPage,
       lang,
-    });
+    );
     setResults(r);
     setTotal(tot);
     setPage(targetPage);
@@ -147,7 +122,7 @@ export function VehicleSearchModal({
   const goToPage = (target: number) => {
     if (target < 1 || target > totalPages || target === page) return;
     if (lastSearchType.current === "variant") void searchByTypeApproval(target);
-    else void applyFilters(target);
+    else void searchByBrandModel(target);
   };
 
   // ── Input handlers (mutuamente esclusivi, parità) ────────────────────────
@@ -155,6 +130,7 @@ export function VehicleSearchModal({
     setTypeApprovalQuery(value);
     if (value.length > 0) {
       setBrandQuery("");
+      setModelQuery("");
       setSerialQuery("");
       setBrandSuggestions([]);
       setShowBrandDropdown(false);
@@ -170,6 +146,7 @@ export function VehicleSearchModal({
     if (value.length > 0) {
       setTypeApprovalQuery("");
       setBrandQuery("");
+      setModelQuery("");
       setBrandSuggestions([]);
       setShowBrandDropdown(false);
     }
@@ -178,16 +155,6 @@ export function VehicleSearchModal({
 
   const onBrandInput = (value: string) => {
     setBrandQuery(value);
-    if (value !== selectedBrand) {
-      setSelectedBrand("");
-      setModels([]);
-      setFilteredModels([]);
-      setSelectedModel("");
-      setModelFilterQuery("");
-      setShowModelDropdown(false);
-      setPowerMin("");
-      setPowerMax("");
-    }
     if (value.length > 0) {
       setSerialQuery("");
       setTypeApprovalQuery("");
@@ -205,30 +172,18 @@ export function VehicleSearchModal({
     }
   };
 
-  const selectBrand = async (brand: string) => {
-    setBrandQuery(brand);
-    setSelectedBrand(brand);
-    setBrandSuggestions([]);
-    setShowBrandDropdown(false);
-    setSelectedModel("");
-    setModelFilterQuery("");
-    setPowerMin("");
-    setPowerMax("");
-    setModels([]);
-    setFilteredModels([]);
-    setFiltersLoading(true);
-    const { models: m } = await sci.getBrandFilters(brand, lang);
-    setModels(m);
-    setFilteredModels([...m]);
-    setFiltersLoading(false);
+  const onModelInput = (value: string) => {
+    setModelQuery(value);
+    if (value.length > 0) {
+      setSerialQuery("");
+      setTypeApprovalQuery("");
+    }
   };
 
-  const onModelFilterInput = (value: string) => {
-    setModelFilterQuery(value);
-    if (value !== selectedModel) setSelectedModel("");
-    const q = (value ?? "").trim().toLowerCase();
-    setFilteredModels(q ? models.filter((m) => m.toLowerCase().includes(q)) : [...models]);
-    setShowModelDropdown(true);
+  const selectBrand = (brand: string) => {
+    setBrandQuery(brand);
+    setBrandSuggestions([]);
+    setShowBrandDropdown(false);
   };
 
   const formatDate = (dateStr?: string): string => {
@@ -268,111 +223,53 @@ export function VehicleSearchModal({
           {t("automation.vehicle_search_or_divider")}
         </div>
 
-        {/* Marca + filtri */}
-        <div className="relative">
-          <Input
-            label={t("automation.form_brand")}
-            placeholder={t("automation.vehicle_search_brand_placeholder")}
-            value={brandQuery}
-            onChange={(e) => onBrandInput(e.target.value)}
-            onBlur={() => setTimeout(() => setShowBrandDropdown(false), 200)}
-            autoComplete="off"
-          />
-          {showBrandDropdown && (
-            <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-12 border border-border-soft bg-white shadow-float">
-              {brandSuggestions.map((brand) => (
-                <li
-                  key={brand}
-                  className="cursor-pointer border-t border-border-soft px-[14px] py-[10px] text-[14px] first:border-t-0 hover:bg-tint-2"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    void selectBrand(brand);
-                  }}
-                >
-                  {brand}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {selectedBrand && (
-          <div className="rounded-14 bg-tint-2 p-4">
-            <p className="mb-3 text-[12.5px] text-muted">
-              {t("automation.vehicle_search_filter_hint")}
-            </p>
-            {filtersLoading ? (
-              <Spinner />
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="relative">
-                  <Input
-                    label={t("automation.vehicle_search_filter_model_label")}
-                    placeholder={t("automation.vehicle_search_filter_model_placeholder")}
-                    value={modelFilterQuery}
-                    onChange={(e) => onModelFilterInput(e.target.value)}
-                    onFocus={() => {
-                      setFilteredModels(modelFilterQuery.trim() ? filteredModels : [...models]);
-                      setShowModelDropdown(true);
-                    }}
-                    onBlur={() => setTimeout(() => setShowModelDropdown(false), 200)}
-                    autoComplete="off"
-                  />
-                  {showModelDropdown && filteredModels.length > 0 && (
-                    <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-12 border border-border-soft bg-white shadow-float">
-                      {filteredModels.map((model) => (
-                        <li
-                          key={model}
-                          className="cursor-pointer border-t border-border-soft px-[14px] py-[10px] text-[14px] first:border-t-0 hover:bg-tint-2"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setSelectedModel(model);
-                            setModelFilterQuery(model);
-                            setShowModelDropdown(false);
-                          }}
-                        >
-                          {model}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label={t("automation.vehicle_search_filter_power_min_label")}
-                    inputMode="numeric"
-                    value={powerMin}
-                    onChange={(e) => setPowerMin(e.target.value)}
-                  />
-                  <Input
-                    label={t("automation.vehicle_search_filter_power_max_label")}
-                    inputMode="numeric"
-                    value={powerMax}
-                    onChange={(e) => setPowerMax(e.target.value)}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => void applyFilters(1)}>
-                    {t("automation.vehicle_search_btn_filter")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      setSelectedModel("");
-                      setModelFilterQuery("");
-                      setPowerMin("");
-                      setPowerMax("");
-                      setFilteredModels([...models]);
+        {/* Marca + Modello + Cerca */}
+        <div className="flex items-end gap-3">
+          <div className="relative flex-1">
+            <Input
+              label={t("automation.form_brand")}
+              placeholder={t("automation.vehicle_search_brand_placeholder")}
+              value={brandQuery}
+              onChange={(e) => onBrandInput(e.target.value)}
+              onBlur={() => setTimeout(() => setShowBrandDropdown(false), 200)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void searchByBrandModel(1);
+              }}
+              autoComplete="off"
+            />
+            {showBrandDropdown && (
+              <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-12 border border-border-soft bg-white shadow-float">
+                {brandSuggestions.map((brand) => (
+                  <li
+                    key={brand}
+                    className="cursor-pointer border-t border-border-soft px-[14px] py-[10px] text-[14px] first:border-t-0 hover:bg-tint-2"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectBrand(brand);
                     }}
                   >
-                    {t("automation.vehicle_search_btn_reset")}
-                  </Button>
-                </div>
-              </div>
+                    {brand}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-        )}
+          <div className="flex-1">
+            <Input
+              label={t("automation.form_model")}
+              placeholder={t("automation.vehicle_search_model_placeholder")}
+              value={modelQuery}
+              onChange={(e) => onModelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void searchByBrandModel(1);
+              }}
+              autoComplete="off"
+            />
+          </div>
+          <Button className="shrink-0" onClick={() => void searchByBrandModel(1)}>
+            {t("automation.vehicle_search_btn_search")}
+          </Button>
+        </div>
 
         {/* Risultati */}
         {loading && (

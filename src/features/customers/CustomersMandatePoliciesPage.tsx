@@ -8,7 +8,7 @@
  * - griglia polizze del cliente raggruppate.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Check, FileText, FileUp } from "lucide-react";
 import clsx from "clsx";
 import { Button, Card, EmptyState } from "@/components/ui";
@@ -46,6 +46,7 @@ export function CustomersMandatePoliciesPage({ id }: { id: string }) {
   const [hasMandateFile, setHasMandateFile] = useState(true);
   const [insurances, setInsurances] = useState<Insurance[]>([]);
   const [mandatePdfFile, setMandatePdfFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const contactLoginId = useRef(0);
   const started = useRef(false);
 
@@ -173,10 +174,23 @@ export function CustomersMandatePoliciesPage({ id }: { id: string }) {
     }
   };
 
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      toaster.warn("Bitte eine PDF-Datei auswählen");
+      return;
+    }
+    setMandatePdfFile(file);
+  };
+
   const showMandateSection = !hasMandateFile || !IS_PRODUCTION;
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-6">
+    <div className="mx-auto flex w-full max-w-[800px] flex-col px-5 py-6">
       <h1 className="mb-6 text-[28px] font-bold tracking-[-0.7px] text-ink">
         {contactname}
       </h1>
@@ -187,9 +201,20 @@ export function CustomersMandatePoliciesPage({ id }: { id: string }) {
             {t("agreement.uploadMandate")}
           </div>
           <label
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragging(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragging(false);
+            }}
+            onDrop={handleDrop}
             className={clsx(
               "flex cursor-pointer flex-col items-center gap-2 rounded-14 border border-dashed p-6 transition-colors",
-              mandatePdfFile
+              mandatePdfFile || isDragging
                 ? "border-brand bg-tint"
                 : "border-border bg-tint-2 hover:bg-tint",
             )}

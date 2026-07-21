@@ -117,7 +117,7 @@ export function PoliciesPage({ clientid }: { clientid?: string }) {
   }, [clientid, loader, getUserName]);
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-6">
+    <div className="mx-auto flex w-full max-w-[800px] flex-col px-5 py-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-[28px] font-bold tracking-[-0.7px] text-ink">
           {contactname || t("policies.title")}

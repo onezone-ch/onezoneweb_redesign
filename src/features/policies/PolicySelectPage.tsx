@@ -58,7 +58,7 @@ export function PolicySelectPage() {
   }, [loader]);
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-6">
+    <div className="mx-auto flex w-full max-w-[800px] flex-col px-5 py-6">
       <h1 className="mb-6 text-[28px] font-bold tracking-[-0.7px] text-ink">
         {t("injure.title")}
       </h1>

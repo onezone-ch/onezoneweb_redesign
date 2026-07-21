@@ -70,7 +70,7 @@ export function PolicyAddPage() {
             acc[curr.id] = true;
             return acc;
           }, {}),
-          userData.contact?.id ?? 0,
+          null,
         );
         toaster.success(t("agreement", "successsend"));
         navigateTo("home");

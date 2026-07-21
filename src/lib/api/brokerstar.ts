@@ -329,7 +329,7 @@ export async function createClaim(
 export async function mandateInformInsurances(
   newMandate: boolean = false,
   insurances: Record<string, boolean> = {},
-  contactLoginId: number = 0,
+  contactLoginId: number | null = 0,
 ): Promise<unknown> {
   return bsSend(
     "POST",

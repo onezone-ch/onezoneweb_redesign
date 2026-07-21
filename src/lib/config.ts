@@ -21,6 +21,5 @@ export function getServerConfig() {
     automationAdminApiKey: process.env.AUTOMATION_ADMIN_API_KEY ?? "",
     swissCarInfoApiUrl: process.env.SWISSCARINFO_API_URL ?? "",
     swissCarInfoApiKey: process.env.SWISSCARINFO_API_KEY ?? "",
-    swissCarInfoBrandsUrl: process.env.SWISSCARINFO_BRANDS_URL ?? "",
   };
 }

@@ -50,7 +50,7 @@ export function MenuPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col justify-between gap-6 px-5 py-6">
+    <div className="mx-auto flex w-full max-w-[800px] flex-1 flex-col justify-between gap-6 px-5 py-6">
       {menu.length > 0 && (
         <ListCard>
           {menu.map((entry, i) => (

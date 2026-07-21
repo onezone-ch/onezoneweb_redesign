@@ -20,7 +20,7 @@ Client corrispondente: [src/lib/api/automation.ts](../src/lib/api/automation.ts)
 
 ## Proxy SwissCarInfo — [src/app/api/swisscarinfo/search/route.ts](../src/app/api/swisscarinfo/search/route.ts)
 
-Proxy `GET /v3/search` con `X-API-Key` iniettata server-side. `brands.php` è pubblico e resta chiamato direttamente dal client. Client: [src/lib/api/swisscarinfo.ts](../src/lib/api/swisscarinfo.ts) (`searchBrands`, `searchVehicles`, `searchByTypeApproval`, `searchBySerial`, `getBrandFilters`, `searchVehiclesByBrand`).
+Proxy `GET /v3/search` con `X-API-Key` iniettata server-side. Client: [src/lib/api/swisscarinfo.ts](../src/lib/api/swisscarinfo.ts) (`searchBrands`, `searchVehicles`, `searchByTypeApproval`, `searchBySerial`).
 
 ## Località svizzere — [src/app/api/localities/route.ts](../src/app/api/localities/route.ts)
 
