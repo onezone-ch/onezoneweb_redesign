@@ -36,8 +36,8 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
     >
       <span
         className={clsx(
-          "absolute top-1 h-4 w-4 rounded-full bg-white shadow-seg transition-transform",
-          on ? "translate-x-6" : "translate-x-1",
+          "absolute top-1 left-1 h-4 w-4 rounded-full bg-white shadow-seg transition-transform",
+          on ? "translate-x-5" : "translate-x-0",
         )}
       />
     </button>
