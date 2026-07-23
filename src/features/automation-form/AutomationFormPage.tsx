@@ -714,45 +714,47 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
         />
       )}
 
-      {/* Tipo richiesta (doc 2026-06-22) */}
-      <Card className="flex flex-col gap-3">
-        <div className="text-[15px] font-semibold text-ink">
-          {t("automation.form_request_type")}
-        </div>
-        {(
-          [
-            ["Nur Nachweis bestellen", "automation.form_request_type_opt1"],
-            ["Vergleich Versicherungsangebote", "automation.form_request_type_opt2"],
-            ["Offerte und Nachweis nur von dieser Versicherung", "automation.form_request_type_opt3"],
-          ] as const
-        ).map(([value, labelKey]) => (
-          <label key={value} className="flex cursor-pointer items-start gap-2">
-            <input
-              type="radio"
-              name="request_type"
-              checked={values.request_type === value}
-              onChange={() => set("request_type", value)}
-              className="mt-1 h-4 w-4 accent-brand"
-            />
-            <span className="text-[14px] text-ink">{t(labelKey)}</span>
-          </label>
-        ))}
-        {showRegistrationScraper(values) && (
-          <Select
-            label={t("automation.form_registration_scraper")}
-            value={values.registration_scraper}
-            error={err("registration_scraper")}
-            onChange={(e) => set("registration_scraper", e.target.value)}
-          >
-            <option value="">{t("automation.form_select_placeholder")}</option>
-            {opt.registrationScraperOptions.map((s: string) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Card>
+      {/* Tipo richiesta (doc 2026-06-22) — nascosto in modalità pubblica */}
+      {!publicMode && (
+        <Card className="flex flex-col gap-3">
+          <div className="text-[15px] font-semibold text-ink">
+            {t("automation.form_request_type")}
+          </div>
+          {(
+            [
+              ["Nur Nachweis bestellen", "automation.form_request_type_opt1"],
+              ["Vergleich Versicherungsangebote", "automation.form_request_type_opt2"],
+              ["Offerte und Nachweis nur von dieser Versicherung", "automation.form_request_type_opt3"],
+            ] as const
+          ).map(([value, labelKey]) => (
+            <label key={value} className="flex cursor-pointer items-start gap-2">
+              <input
+                type="radio"
+                name="request_type"
+                checked={values.request_type === value}
+                onChange={() => set("request_type", value)}
+                className="mt-1 h-4 w-4 accent-brand"
+              />
+              <span className="text-[14px] text-ink">{t(labelKey)}</span>
+            </label>
+          ))}
+          {showRegistrationScraper(values) && (
+            <Select
+              label={t("automation.form_registration_scraper")}
+              value={values.registration_scraper}
+              error={err("registration_scraper")}
+              onChange={(e) => set("registration_scraper", e.target.value)}
+            >
+              <option value="">{t("automation.form_select_placeholder")}</option>
+              {opt.registrationScraperOptions.map((s: string) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Card>
+      )}
 
       {/* Sezione 1 — Dati personali */}
       <Section title={t("automation.form_section_personal")}>
