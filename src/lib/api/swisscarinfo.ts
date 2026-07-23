@@ -13,6 +13,11 @@ export interface VehicleSearchResult {
   total: number;
 }
 
+export interface FuelOption {
+  code: string;
+  label: string;
+}
+
 interface SwissCarInfoItem {
   identification: {
     make: string;
@@ -21,8 +26,9 @@ interface SwissCarInfoItem {
     registration_number?: string;
     date_of_approval?: string;
   };
+  variant?: string;
   engine?: { power_kw?: number; power_hp?: number };
-  fuel?: { type_label?: string };
+  fuel?: { type_label?: string; type_code?: string };
   _source?: string;
   _generation?: number;
 }
@@ -30,14 +36,15 @@ interface SwissCarInfoItem {
 interface SwissCarInfoResponse {
   success: boolean;
   data: SwissCarInfoItem[];
-  meta?: { total: number; page: number };
+  meta?: { total: number; page: number; models?: string[]; fuels?: FuelOption[] };
 }
 
 function mapItem(item: SwissCarInfoItem): VehicleResult {
   return {
     make: item.identification?.make ?? "",
     commercial_name: item.identification?.commercial_name ?? "",
-    type_approval: item.identification?.type_approval ?? "",
+    // Il filtro restituisce l'omologazione nel campo `variant`; per variant/matricule è assente.
+    type_approval: item.variant ?? item.identification?.type_approval ?? "",
     fuel_type: item.fuel?.type_label,
     power_kw: item.engine?.power_kw,
     power_hp: item.engine?.power_hp,
@@ -128,4 +135,59 @@ export async function searchBySerial(
   );
   if (!res?.success || !res.data || res.data.length === 0) return null;
   return { ...mapItem(res.data[0]), source: "matricule" };
+}
+
+/**
+ * Liste ufficiali modelli + carburanti per la barra filtri (passo 2 del flusso a 3 passi).
+ * Passando `model` si restringono i soli `fuels` a marca+modello; `models` resta l'elenco completo.
+ */
+export async function getModelsFuels(
+  brand: string,
+  model: string = "",
+  lang: string = "de",
+): Promise<{ models: string[]; fuels: FuelOption[] }> {
+  if (!brand.trim()) return { models: [], fuels: [] };
+  const params = new URLSearchParams({
+    type: "brand_model",
+    brand: brand.trim(),
+    lists: "models,fuels",
+    limit: "1",
+    lang,
+  });
+  if (model.trim()) params.set("model", model.trim());
+  const res = await searchApi(params);
+  if (!res?.success) return { models: [], fuels: [] };
+  return { models: res.meta?.models ?? [], fuels: res.meta?.fuels ?? [] };
+}
+
+/**
+ * Filtro veicoli esatto (passo 3): brand + parametri filtro valorizzati.
+ * `type_approval` viene dal campo `variant` (vedi mapItem).
+ */
+export async function filterVehicles(
+  brand: string,
+  model: string,
+  fuel: string,
+  powerMin: string,
+  powerMax: string,
+  page: number,
+  perPage: number,
+  lang: string = "de",
+): Promise<VehicleSearchResult> {
+  if (!brand.trim()) return { results: [], total: 0 };
+  const params = new URLSearchParams({
+    type: "brand_model",
+    brand: brand.trim(),
+    lang,
+    limit: String(perPage),
+    page: String(page),
+  });
+  if (model.trim()) params.set("model", model.trim());
+  if (fuel.trim()) params.set("fuel", fuel.trim());
+  if (powerMin.trim()) params.set("power_min", powerMin.trim());
+  if (powerMax.trim()) params.set("power_max", powerMax.trim());
+  const res = await searchApi(params);
+  if (!res?.success || !res.data) return { results: [], total: 0 };
+  const results = res.data.map(mapItem);
+  return { results, total: res.meta?.total ?? results.length };
 }
