@@ -57,6 +57,9 @@ export interface FormValues {
   car_brand_1: string;
   car_model_1: string;
   serial_number_1: string;
+  power_kw_1: string;
+  displacement_ccm_1: string;
+  type_approval_date_1: string;
   accessories_1: string | null;
   canton: string;
   license_plate: string;
@@ -75,6 +78,9 @@ export interface FormValues {
   n_certificate_2: string;
   car_brand_2: string;
   car_model_2: string;
+  power_kw_2: string;
+  displacement_ccm_2: string;
+  type_approval_date_2: string;
   accessories_2: string | null;
   serial_number_2: string;
   first_registration_date_2: string;
@@ -166,6 +172,9 @@ export const INITIAL_VALUES: FormValues = {
   car_brand_1: "",
   car_model_1: "",
   serial_number_1: "",
+  power_kw_1: "",
+  displacement_ccm_1: "",
+  type_approval_date_1: "",
   accessories_1: null,
   canton: "ZH",
   license_plate: "",
@@ -184,6 +193,9 @@ export const INITIAL_VALUES: FormValues = {
   n_certificate_2: "",
   car_brand_2: "",
   car_model_2: "",
+  power_kw_2: "",
+  displacement_ccm_2: "",
+  type_approval_date_2: "",
   accessories_2: null,
   serial_number_2: "",
   first_registration_date_2: "",
@@ -236,6 +248,118 @@ export const INITIAL_VALUES: FormValues = {
   request_type: "Vergleich Versicherungsangebote",
   registration_scraper: "",
 };
+
+// ── Precompilazione da payload esistente (prefill "Modifica e riprocessa") ──
+
+export interface PrefillAddress {
+  zip: string;
+  city: string;
+  address: string;
+}
+
+export interface HydratedForm {
+  values: FormValues;
+  /** Indirizzo richiedente → instradato all'autocomplete (non a setValues). */
+  address: PrefillAddress;
+  /** Indirizzo conducente principale (solo se main_driver === "other"). */
+  mdAddress: PrefillAddress | null;
+}
+
+// Campi di FormValues gestiti a parte (non copia generica 1:1):
+// - main_driver: forma annidata nel payload;
+// - zip_code/area/address/recipient_email: indirizzi → autocomplete, recipient non tornato.
+const GENERIC_SKIP = new Set<string>([
+  "main_driver",
+  "zip_code",
+  "area",
+  "address",
+  "recipient_email",
+]);
+
+/**
+ * Inverte la trasformazione di onSubmit: dal payload restituito da
+ * GET /quote-requests/{id}/payload ricostruisce lo stato del form.
+ * La maggioranza dei campi è copia diretta (coercizione per tipo del default);
+ * i campi non-1:1 (electric_vehicle, main_driver, request_type, license) sono
+ * invertiti esplicitamente. `other_questions` NON viene precompilato.
+ */
+export function hydrateFromPayload(payload: Record<string, unknown>): HydratedForm {
+  const values: FormValues = { ...INITIAL_VALUES, main_driver: { ...INITIAL_MAIN_DRIVER } };
+  const v = values as unknown as Record<string, unknown>;
+
+  // Copia generica dei campi scalari, coercizione in base al tipo del default.
+  for (const key of Object.keys(INITIAL_VALUES)) {
+    if (GENERIC_SKIP.has(key)) continue;
+    const raw = payload[key];
+    if (raw === undefined) continue;
+    const def = (INITIAL_VALUES as unknown as Record<string, unknown>)[key];
+    if (typeof def === "boolean") v[key] = Boolean(raw);
+    else if (typeof def === "string") v[key] = raw == null ? "" : String(raw);
+    else if (Array.isArray(def)) v[key] = Array.isArray(raw) ? raw.map(String) : def;
+    else if (def === null) v[key] = raw == null ? null : String(raw); // string | null
+  }
+
+  // electric_vehicle (oggetto annidato) → 4 booleani. onSubmit invia chiavi
+  // inglesi; il tipo dichiara chiavi italiane → fallback difensivo.
+  const ev = payload.electric_vehicle as Record<string, unknown> | undefined;
+  if (ev && typeof ev === "object") {
+    values.ev_charging_station = Boolean(
+      ev.charging_station_and_accessories ?? ev["stazione di ricarica e accessori"],
+    );
+    values.ev_high_voltage_battery = Boolean(
+      ev.high_voltage_batteries ?? ev["batterie alta tensione"],
+    );
+    values.ev_cyber_protection = Boolean(ev.cyber_protection ?? ev["protezione informatica"]);
+    values.ev_charging_cards_apps = Boolean(
+      ev.charging_cards_and_app_protection ?? ev["protezione carte ricarica e app"],
+    );
+  }
+
+  // main_driver: { driver_type, driver } → main_driver_type + main_driver (flat).
+  // Assente ⇒ default "user" (onSubmit invia main_driver solo per other/multiple).
+  let mdAddress: PrefillAddress | null = null;
+  const md = payload.main_driver as
+    | { driver_type?: unknown; driver?: Record<string, unknown> }
+    | undefined;
+  if (md && typeof md === "object" && typeof md.driver_type === "string") {
+    values.main_driver_type = md.driver_type;
+    const driver = md.driver;
+    if (driver && typeof driver === "object") {
+      for (const k of Object.keys(INITIAL_MAIN_DRIVER) as (keyof MainDriverValues)[]) {
+        if (k === "zip_code" || k === "area" || k === "address") continue;
+        const dv = driver[k];
+        if (dv != null) values.main_driver[k] = String(dv);
+      }
+      mdAddress = {
+        zip: driver.zip_code != null ? String(driver.zip_code) : "",
+        city: driver.area != null ? String(driver.area) : "",
+        address: driver.address != null ? String(driver.address) : "",
+      };
+    }
+  }
+
+  // request_type derivato da registration_only + registration_scraper.
+  if (payload.registration_only === true) {
+    values.request_type = "Nur Nachweis bestellen";
+  } else if (payload.registration_only === false && payload.registration_scraper) {
+    values.request_type = "Offerte und Nachweis nur von dieser Versicherung";
+  } else {
+    values.request_type = "Vergleich Versicherungsangebote";
+  }
+
+  // license_withdrawal_5_years (assente ⇒ "none").
+  if (payload.license_withdrawal_5_years) {
+    values.other_q_license_suspension = String(payload.license_withdrawal_5_years);
+  }
+
+  const address: PrefillAddress = {
+    zip: payload.zip_code != null ? String(payload.zip_code) : "",
+    city: payload.area != null ? String(payload.area) : "",
+    address: payload.address != null ? String(payload.address) : "",
+  };
+
+  return { values, address, mdAddress };
+}
 
 // ── Visibilità condizionale (port dei getter) ──────────────────────────────
 export const showVehicle2 = (v: FormValues) => v.interchangeable_plate === "Yes";
@@ -293,20 +417,21 @@ export function validateForm(
 
   // Dati personali
   req("gender", !!v.gender);
+  // company_name obbligatorio solo per Azienda; i campi anagrafici sono richiesti
+  // sempre dallo schema backend (anche per Azienda: rappresentano l'autista).
   if (isCompany) {
     req("company_name", !!v.company_name.trim());
-  } else {
-    req("first_name", !!v.first_name.trim());
-    req("last_name", !!v.last_name.trim());
-    if (!v.birth_date) e["birth_date"] = "required";
-    else if (!DATE_RE.test(v.birth_date)) e["birth_date"] = "pattern";
-    else if (violatesMinAgeFromToday(v.birth_date)) e["birth_date"] = "minAge";
-    if (!v.first_driving_license_date) e["first_driving_license_date"] = "required";
-    else if (!DATE_RE.test(v.first_driving_license_date))
-      e["first_driving_license_date"] = "pattern";
-    else if (violatesMinAgeAtLicense(v.first_driving_license_date, v.birth_date))
-      e["first_driving_license_date"] = "minAge";
   }
+  req("first_name", !!v.first_name.trim());
+  req("last_name", !!v.last_name.trim());
+  if (!v.birth_date) e["birth_date"] = "required";
+  else if (!DATE_RE.test(v.birth_date)) e["birth_date"] = "pattern";
+  else if (violatesMinAgeFromToday(v.birth_date)) e["birth_date"] = "minAge";
+  if (!v.first_driving_license_date) e["first_driving_license_date"] = "required";
+  else if (!DATE_RE.test(v.first_driving_license_date))
+    e["first_driving_license_date"] = "pattern";
+  else if (violatesMinAgeAtLicense(v.first_driving_license_date, v.birth_date))
+    e["first_driving_license_date"] = "minAge";
 
   if (!v.zip_code) e["zip_code"] = "required";
   else if (!PLZ_RE.test(v.zip_code)) e["zip_code"] = "pattern";

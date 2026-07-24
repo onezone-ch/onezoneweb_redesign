@@ -191,6 +191,23 @@ export function useAddressAutocomplete(options: AddressAutocompleteOptions = {})
     [close],
   );
 
+  /**
+   * Imposta un indirizzo già noto e lo marca come validato (CAP, località e via),
+   * caricando la cache località. Usato per prefill programmatici (es. dati di test).
+   */
+  const setResolvedAddress = useCallback(
+    async (postCode: string, city: string, address: string) => {
+      setValues({ postCode, city, address });
+      const localities = await getLocalitiesByPlz(postCode);
+      localitiesForPlz.current = localities;
+      if (address.trim()) validAddresses.current.add(address.trim().toLowerCase());
+      setCacheVersion((n) => n + 1);
+      const entry = localities.find((l) => l.locality === city) ?? localities[0];
+      if (entry) onSelectLocality?.(entry);
+    },
+    [onSelectLocality],
+  );
+
   useEffect(() => {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
@@ -284,6 +301,7 @@ export function useAddressAutocomplete(options: AddressAutocompleteOptions = {})
     selectArea,
     onAddressInput,
     selectStreet,
+    setResolvedAddress,
     onKeyDown,
     closeSoon,
     canQueryStreets,

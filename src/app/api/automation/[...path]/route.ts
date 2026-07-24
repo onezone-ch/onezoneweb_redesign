@@ -33,6 +33,7 @@ const RULES: Rule[] = [
   { method: "POST", pattern: /^extract-totp-secret$/, auth: "admin" },
   { method: "POST", pattern: /^generate-quotes$/, auth: "consultant" },
   { method: "GET", pattern: /^quote-requests\/\d+$/, auth: "consultant" },
+  { method: "GET", pattern: /^quote-requests\/\d+\/payload$/, auth: "consultant" },
 ];
 
 /** Cache di processo della api_key del consulente pubblico. */

@@ -24,6 +24,7 @@ Punti critici:
 - **Payload**: `electric_vehicle` oggetto con 4 boolean; `other_questions` stringa concatenata delle checkbox tradotte; `license_withdrawal_5_years` solo se ≠ none; `source` = `onezone_cliente`/`onezone_consulente`; `recipient_email` = form (public) o `consultantData.ecohub_username`.
 - **Modalità pubblica**: `?lang=it|de|fr|en` forza la lingua; submit via proxy `public/generate-quotes`; scrapers non filtrati.
 - **Modalità consulente**: scrapers = env meno `consultantDisabledScrapers`.
+- **Prefill `?request_id=` ("Modifica e riprocessa" dalla dashboard)**: solo flusso consulente. Effetto one-shot in AutomationFormPage: `getQuoteRequestPayload(id)` (proxy `GET quote-requests/{id}/payload`, allowlist consulente) → `hydrateFromPayload` (formState.ts) inverte la trasformazione di `onSubmit` (electric_vehicle→4 bool, main_driver annidato→flat+type, request_type da `registration_only`+`registration_scraper`, `license_withdrawal_5_years`→`other_q_license_suspension`, coercizioni `null`→`""`); indirizzi instradati agli autocomplete via `setResolvedAddress`. `other_questions` NON precompilato (testo opaco che blocca l'automazione lato backend); `recipient_email` mai restituito. `stale:true` → hint non bloccante (`form_prefill_stale_hint`, atteso 422 al submit sui campi mancanti); 404 → toast `form_prefill_not_found`. URL ripulito con `history.replaceState`. Il submit crea una **nuova** richiesta (la riga originale non è toccata).
 
 ## ConsultantAutomation (admin) — `/consultant-automation`
 

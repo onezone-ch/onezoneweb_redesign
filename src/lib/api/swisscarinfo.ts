@@ -27,7 +27,7 @@ interface SwissCarInfoItem {
     date_of_approval?: string;
   };
   variant?: string;
-  engine?: { power_kw?: number; power_hp?: number };
+  engine?: { power_kw?: number; power_hp?: number; displacement_cc?: number };
   fuel?: { type_label?: string; type_code?: string };
   _source?: string;
   _generation?: number;
@@ -48,6 +48,7 @@ function mapItem(item: SwissCarInfoItem): VehicleResult {
     fuel_type: item.fuel?.type_label,
     power_kw: item.engine?.power_kw,
     power_hp: item.engine?.power_hp,
+    displacement_cc: item.engine?.displacement_cc,
     date_of_approval: item.identification?.date_of_approval,
     source: item._generation != null ? `TAS Gen${item._generation}` : item._source,
   };

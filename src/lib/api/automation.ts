@@ -19,6 +19,7 @@ import type {
   LocalityEntry,
   PatchConsultantPayload,
   QuoteRequestPayload,
+  QuoteRequestPayloadResponse,
   QuoteRequestStatus,
   StreetEntry,
 } from "./automation.types";
@@ -144,6 +145,17 @@ export async function getQuoteRequestStatus(
     return request("GET", `public/quote-requests/${requestId}`);
   }
   return request("GET", `quote-requests/${requestId}`, { consultantKey: true });
+}
+
+/**
+ * Recupera il payload di una richiesta esistente per precompilare il form
+ * (pulsante "Modifica e riprocessa" della dashboard). Solo flusso consulente:
+ * l'ownership è applicata dal backend tramite la api_key consulente.
+ */
+export async function getQuoteRequestPayload(
+  requestId: number,
+): Promise<QuoteRequestPayloadResponse> {
+  return request("GET", `quote-requests/${requestId}/payload`, { consultantKey: true });
 }
 
 // ---------------------------------------------------------------------------

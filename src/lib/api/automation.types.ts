@@ -5,6 +5,7 @@ export interface VehicleResult {
   fuel_type?: string;
   power_kw?: number;
   power_hp?: number;
+  displacement_cc?: number;
   date_of_approval?: string;
   source?: string;
 }
@@ -120,6 +121,19 @@ export interface QuoteRequestStatus {
   error_message?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+/**
+ * Risposta di GET /quote-requests/{id}/payload: `payload` è lo stesso oggetto
+ * già POSTato a generate-quotes (usato per precompilare il form). `stale` indica
+ * che la richiesta è antecedente a una modifica di schema → alcuni campi
+ * required potrebbero mancare (atteso 422 al submit finché non compilati).
+ */
+export interface QuoteRequestPayloadResponse {
+  request_id: number;
+  stale: boolean;
+  stale_reason: string | null;
+  payload: QuoteRequestPayload;
 }
 
 export interface QuoteRequestPayload {

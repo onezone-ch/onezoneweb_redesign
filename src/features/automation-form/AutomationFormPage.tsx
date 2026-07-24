@@ -14,7 +14,7 @@
  * - bottone dev "riempi dati di test" solo fuori produzione (parità).
  */
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { Button, Card, Input, Select } from "@/components/ui";
@@ -31,6 +31,7 @@ import { toaster } from "@/lib/toaster";
 import * as opt from "./options";
 import {
   INITIAL_VALUES,
+  hydrateFromPayload,
   showVehicle2,
   showCompanyName,
   showForeignersId,
@@ -114,8 +115,21 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [submitErrorHtml, setSubmitErrorHtml] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const modalVehicleIndex = useRef<1 | 2>(1);
+  // Prefill "Modifica e riprocessa": richiesta antecedente a un cambio schema
+  const [prefillStale, setPrefillStale] = useState(false);
+  const prefillDone = useRef(false);
+
+  // Quando compare l'errore backend, scrolla il box nel container scrollabile
+  // (<main overflow-y-auto> della shell, non window): il useEffect garantisce
+  // che il box sia già nel DOM prima dello scroll.
+  useEffect(() => {
+    if (submitErrorHtml && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [submitErrorHtml]);
 
   // Autocomplete indirizzo principale (imposta anche il cantone, parità selectPlz)
   const ac = useAddressAutocomplete({
@@ -126,6 +140,44 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
     onSelectLocality: (entry) => setMd("canton", entry.canton),
   });
 
+  // Prefill da ?request_id= (pulsante "Modifica e riprocessa" della dashboard):
+  // recupera il payload della richiesta esistente e precompila il form. Solo
+  // flusso consulente; l'ownership è applicata dal backend. Effetto one-shot.
+  useEffect(() => {
+    if (publicMode || prefillDone.current) return;
+    const requestId = (searchParams.get("request_id") || "").trim();
+    if (!requestId) return;
+    prefillDone.current = true;
+    // Toglie l'id dalla cronologia (l'URL torna pulito)
+    window.history.replaceState(null, "", "/automation-form");
+    void (async () => {
+      loader.show();
+      try {
+        const res = await automation.getQuoteRequestPayload(Number(requestId));
+        const { values: hydrated, address, mdAddress } = hydrateFromPayload(
+          res.payload as unknown as Record<string, unknown>,
+        );
+        setValues(hydrated);
+        if (address.zip || address.city || address.address) {
+          void ac.setResolvedAddress(address.zip, address.city, address.address);
+        }
+        if (mdAddress && (mdAddress.zip || mdAddress.city || mdAddress.address)) {
+          void mdAc.setResolvedAddress(mdAddress.zip, mdAddress.city, mdAddress.address);
+        }
+        setPrefillStale(Boolean(res.stale));
+      } catch (error) {
+        if (error instanceof AutomationError && error.status === 404) {
+          toaster.warn(t("automation", "form_prefill_not_found"));
+        } else {
+          toaster.warn(t("automation", "error_generic"));
+        }
+      } finally {
+        loader.hide();
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const touch = (field: string) => setTouched((tc) => ({ ...tc, [field]: true }));
 
   /** setter con i side-effect condizionali di setupConditionalFields */
@@ -134,12 +186,8 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
       setValues((v) => {
         const next = { ...v, [field]: value };
         if (field === "gender") {
-          if (value === "Company") {
-            next.first_name = "";
-            next.last_name = "";
-            next.birth_date = "";
-            next.first_driving_license_date = "";
-          } else {
+          // Anche per Azienda servono i campi anagrafici (autista): non azzerarli.
+          if (value !== "Company") {
             next.company_name = "";
             if (next.main_driver_type === "multiple") next.main_driver_type = "user";
           }
@@ -245,6 +293,13 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
   }
 
   // ── Selezione veicolo dal modal (port di selectVehicleResult) ────────────
+  // ISO YYYY-MM-DD → DD.MM.YYYY (coerente con gli altri campi data del form)
+  const isoToDmy = (iso?: string): string => {
+    if (!iso) return "";
+    const [year, month, day] = iso.split("-");
+    return year && month && day ? `${day}.${month}.${year}` : "";
+  };
+
   const onVehicleSelect = ({ result, searchType, serialQuery }: VehicleSelection) => {
     const idx = modalVehicleIndex.current;
     const typeApproval = (result.type_approval ?? "").trim();
@@ -254,6 +309,10 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
       [`car_brand_${idx}`]: result.make,
       [`car_model_${idx}`]: result.commercial_name,
       [`n_certificate_${idx}`]: N_CERT_RE.test(typeApproval) ? typeApproval : "",
+      [`power_kw_${idx}`]: result.power_kw != null ? String(result.power_kw) : "",
+      [`displacement_ccm_${idx}`]:
+        result.displacement_cc != null ? String(result.displacement_cc) : "",
+      [`type_approval_date_${idx}`]: isoToDmy(result.date_of_approval),
       ...(searchType === "matricule"
         ? { [`serial_number_${idx}`]: serialOk ? serialQuery : "" }
         : {}),
@@ -269,6 +328,9 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
       [`car_model_${idx}`]: "",
       [`n_certificate_${idx}`]: "",
       [`serial_number_${idx}`]: "",
+      [`power_kw_${idx}`]: "",
+      [`displacement_ccm_${idx}`]: "",
+      [`type_approval_date_${idx}`]: "",
     }));
     setModalOpen(true);
   };
@@ -368,7 +430,6 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
 
     const payload: Record<string, unknown> = {
       ...rest,
-      request_type,
       recipient_email: recipientEmail,
       electric_vehicle: {
         charging_station_and_accessories: !!ev_charging_station,
@@ -379,6 +440,18 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
       other_questions: otherQuestions.join(", "),
       source: publicMode ? "onezone_cliente" : "onezone_consulente",
     };
+
+    // Campi tecnici veicolo: lo schema li vuole integer|null / string|null.
+    // Coercizione: stringa vuota → null, numerici → Number.
+    const numOrNull = (s: string) => (s ? Number(s) : null);
+    const strOrNull = (s: string) => (s ? s : null);
+    payload["power_kw_1"] = numOrNull(merged.power_kw_1);
+    payload["displacement_ccm_1"] = numOrNull(merged.displacement_ccm_1);
+    payload["type_approval_date_1"] = strOrNull(merged.type_approval_date_1);
+    payload["power_kw_2"] = numOrNull(merged.power_kw_2);
+    payload["displacement_ccm_2"] = numOrNull(merged.displacement_ccm_2);
+    payload["type_approval_date_2"] = strOrNull(merged.type_approval_date_2);
+
     if (other_q_license_suspension && other_q_license_suspension !== "none") {
       payload["license_withdrawal_5_years"] = other_q_license_suspension;
     }
@@ -423,11 +496,7 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
         toaster.warn(
           `Errore backend (HTTP ${error instanceof AutomationError ? error.status : "?"}) — vedi dettagli sopra il form`,
         );
-        try {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        } catch {
-          /* noop */
-        }
+        // lo scroll al box errore è gestito dal useEffect su submitErrorHtml
       } else {
         toaster.warn(t("automation", "error_generic"));
       }
@@ -442,36 +511,49 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
       ...v,
       gender: "Company",
       company_name: "Galy Inhaber Claret",
+      first_name: "Dario",
+      last_name: "Sgamba",
+      birth_date: "06.11.1993",
+      first_driving_license_date: "01.01.2012",
+      address_number: "123",
       email: "d.sgamba@hotmail.it",
       phone: "0798541611",
       nationality: "CH",
       language: "de",
       main_driver_type: "multiple",
       deductible_under_26: "1000",
-      n_certificate_1: "3FD888",
-      car_brand_1: "FIAT",
-      car_model_1: "FIAT Ducato 2.2 MJ",
-      serial_number_1: "233566755",
+      n_certificate_1: "1VB273",
+      car_brand_1: "VOLVO",
+      car_model_1: "V90 D4",
+      serial_number_1: "123456786",
+      power_kw_1: "140",
+      displacement_ccm_1: "1969",
+      type_approval_date_1: "27.04.2016",
       canton: "BE",
-      first_registration_date_1: "13.12.2022",
+      first_registration_date_1: "13.12.2017",
       leasing_1: "No",
       garage_parking_1: "No",
       interchangeable_plate: "No",
+      vehicle_type_1: "passenger_car",
+      drive_1: "Diesel",
+      purchase_date_1: "12.2018",
       kilometers_per_year_1: "15000",
+      current_mileage_1: "15000",
       vehicle_usage: "rental",
       civil_insurance: "Yes excluding my property",
-      comprehensive_insurance: "Partial",
+      comprehensive_insurance: "Full",
+      deductible_total_insurance: "1000",
       deductible_partial_insurance: "0",
       personal_belongings_coverage: "No",
       roadside_assistance: "No",
       garage_free_choice: "free_choice",
       payment_mode: "Semiannual",
       current_insurance: "Zürich",
-      recipient_email: "marko.petric@versicherungs-broker.ch",
+      recipient_email: "android@versicherungs-broker.ch",
       scrapers: [...availableScrapers],
       request_type: "Vergleich Versicherungsangebote",
     }));
-    void ac.onPlzInput("2503");
+    void ac.setResolvedAddress("2503", "Biel/Bienne", "Badhausstrasse / Rue des Bains");
     toaster.success(t("automation", "form_test_loaded"));
   };
 
@@ -548,6 +630,30 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
           onChange={(e) => set(g("accessories"), e.target.value)}
         />
         <Hint text={t(`automation.form_accessories${suffix || ""}_hint`)} />
+        <Input
+          label={t("automation.form_power_kw")}
+          value={String(values[g("power_kw")] ?? "")}
+          inputMode="numeric"
+          onChange={(e) => set(g("power_kw"), e.target.value)}
+        />
+        <Input
+          label={t("automation.form_displacement")}
+          value={String(values[g("displacement_ccm")] ?? "")}
+          inputMode="numeric"
+          onChange={(e) => set(g("displacement_ccm"), e.target.value)}
+        />
+        <Input
+          label={t("automation.form_type_approval_date")}
+          placeholder={t("automation.form_date_placeholder")}
+          value={String(values[g("type_approval_date")] ?? "")}
+          onChange={(e) => {
+            const ev = e.nativeEvent as InputEvent;
+            set(
+              g("type_approval_date"),
+              formatDateInput(e.target.value, ev.inputType === "deleteContentBackward"),
+            );
+          }}
+        />
         {idx === 1 && (
           <>
             <Select
@@ -709,9 +815,16 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
 
       {submitErrorHtml && (
         <div
+          ref={errorRef}
           className="rounded-14 bg-danger-bg p-4 text-[13px] text-danger"
           dangerouslySetInnerHTML={{ __html: submitErrorHtml }}
         />
+      )}
+
+      {prefillStale && (
+        <div className="rounded-14 bg-tint-2 p-4 text-[13px] text-ink-2">
+          {t("automation", "form_prefill_stale_hint")}
+        </div>
       )}
 
       {/* Tipo richiesta (doc 2026-06-22) — nascosto in modalità pubblica */}
@@ -785,7 +898,7 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
           <p className="mt-[6px] text-[12px] text-muted">{t("automation.form_gender_hint")}</p>
         </div>
 
-        {showCompanyName(values) ? (
+        {showCompanyName(values) && (
           <>
             <Input
               label={t("automation.form_company")}
@@ -795,46 +908,44 @@ export function AutomationFormPage({ publicMode = false }: { publicMode?: boolea
             />
             <Hint text={t("automation.form_company_hint")} />
           </>
-        ) : (
-          <>
-            <Input
-              label={t("automation.form_first_name")}
-              value={values.first_name}
-              error={err("first_name")}
-              onChange={(e) => set("first_name", e.target.value)}
-            />
-            <Hint text={t("automation.form_first_name_hint")} />
-            <Input
-              label={t("automation.form_last_name")}
-              value={values.last_name}
-              error={err("last_name")}
-              onChange={(e) => set("last_name", e.target.value)}
-            />
-            <Input
-              label={t("automation.form_birth_date")}
-              placeholder={t("automation.form_date_placeholder")}
-              value={values.birth_date}
-              error={err("birth_date")}
-              onChange={(e) => {
-                const ev = e.nativeEvent as InputEvent;
-                set("birth_date", formatDateInput(e.target.value, ev.inputType === "deleteContentBackward"));
-              }}
-            />
-            <Input
-              label={t("automation.form_driving_license")}
-              placeholder={t("automation.form_date_placeholder")}
-              value={values.first_driving_license_date}
-              error={err("first_driving_license_date")}
-              onChange={(e) => {
-                const ev = e.nativeEvent as InputEvent;
-                set(
-                  "first_driving_license_date",
-                  formatDateInput(e.target.value, ev.inputType === "deleteContentBackward"),
-                );
-              }}
-            />
-          </>
         )}
+        {/* Anagrafica (autista): richiesta sempre dallo schema, anche per Azienda */}
+        <Input
+          label={t("automation.form_first_name")}
+          value={values.first_name}
+          error={err("first_name")}
+          onChange={(e) => set("first_name", e.target.value)}
+        />
+        <Hint text={t("automation.form_first_name_hint")} />
+        <Input
+          label={t("automation.form_last_name")}
+          value={values.last_name}
+          error={err("last_name")}
+          onChange={(e) => set("last_name", e.target.value)}
+        />
+        <Input
+          label={t("automation.form_birth_date")}
+          placeholder={t("automation.form_date_placeholder")}
+          value={values.birth_date}
+          error={err("birth_date")}
+          onChange={(e) => {
+            const ev = e.nativeEvent as InputEvent;
+            set("birth_date", formatDateInput(e.target.value, ev.inputType === "deleteContentBackward"));
+          }}
+        />
+        <Input
+          label={t("automation.form_driving_license")}
+          placeholder={t("automation.form_date_placeholder")}
+          value={values.first_driving_license_date}
+          error={err("first_driving_license_date")}
+          onChange={(e) => {
+            const ev = e.nativeEvent as InputEvent;
+            set(
+              "first_driving_license_date",
+              formatDateInput(e.target.value, ev.inputType === "deleteContentBackward"),
+            );
+          }}
+        />
 
         <AddressFields
           ac={ac}
